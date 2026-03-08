@@ -1,3 +1,4 @@
+import argparse
 import os
 
 from dotenv import load_dotenv
@@ -12,7 +13,11 @@ def main():
 
     client = genai.Client(api_key=api_key)
 
-    user_promt = "Why is Boot.dev such a great place to learn backend development? Use one paragraph maximum."
+    parser = argparse.ArgumentParser(description="Gemini Chatbot")
+    parser.add_argument("user_promt", type=str, help="User prompt")
+    args = parser.parse_args()
+
+    user_promt = args.user_promt
     print(f"User prompt: {user_promt}")
 
     response = client.models.generate_content(
