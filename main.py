@@ -3,6 +3,7 @@ import os
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 
 def main():
@@ -19,10 +20,11 @@ def main():
 
     user_promt = args.user_promt
     print(f"User prompt: {user_promt}")
+    messages = [types.Content(role="user", parts=[types.Part(text=user_promt)])]
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=user_promt,
+        contents=messages,
     )
 
     usage_metadata = response.usage_metadata
