@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 from dotenv import load_dotenv
 from google import genai
@@ -24,42 +25,52 @@ def main():
 
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
-        ),
-    )
+    for _ in range(20):
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=messages,
+            config=types.GenerateContentConfig(
+                tools=[available_functions], system_instruction=system_prompt
+            ),
+        )
 
-    usage_metadata = response.usage_metadata
-    if usage_metadata is None:
-        raise RuntimeError("no usage_metadata")
+        usage_metadata = response.usage_metadata
+        if usage_metadata is None:
+            raise RuntimeError("no usage_metadata")
 
-    if args.verbose:
-        print(f"User prompt: {args.user_prompt}")
-        print(f"System prompt: {system_prompt}")
-        print(f"Prompt tokens: {usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {usage_metadata.candidates_token_count}")
+        if args.verbose:
+            print(f"User prompt: {args.user_prompt}")
+            print(f"System prompt: {system_prompt}")
+            print(f"Prompt tokens: {usage_metadata.prompt_token_count}")
+            print(f"Response tokens: {usage_metadata.candidates_token_count}")
 
-    if response.function_calls is None:
-        print("Response:")
-        print(response.text)
-    else:
-        for call in response.function_calls:
-            # print(f"Calling function: {call.name}({call.args})")
-            function_call_result = call_function(call, args.verbose)
+        if response.candidates:
+            for canditate in response.candidates:
+                messages.append(canditate.content)
 
-    if not function_call_result.parts:
-        raise Exception("Error: 'function_call_result.parts' is empty")
-    if function_call_result.parts[0].function_response is None:
-        raise Exception("Error: 'function_response' is None")
-    if function_call_result.parts[0].function_response.response is None:
-        raise Exception("Error: 'function_response.response' is None")
-    function_results = [function_call_result.parts[0]]
+        if response.function_calls is None:
+            print("Response:")
+            print(response.text)
+            return
+        else:
+            for call in response.function_calls:
+                # print(f"Calling function: {call.name}({call.args})")
+                function_call_result = call_function(call, args.verbose)
 
-    if args.verbose:
-        print(f"-> {function_call_result.parts[0].function_response.response}")
+        if not function_call_result.parts:
+            raise Exception("Error: 'function_call_result.parts' is empty")
+        if function_call_result.parts[0].function_response is None:
+            raise Exception("Error: 'function_response' is None")
+        if function_call_result.parts[0].function_response.response is None:
+            raise Exception("Error: 'function_response.response' is None")
+        function_results = [function_call_result.parts[0]]
+        messages.append(types.Content(role="user", parts=function_results))
+
+        if args.verbose:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
+
+    print("Maximum number of iterations exceeded")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
